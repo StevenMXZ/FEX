@@ -1,52 +1,36 @@
-name: Wine DLL artifacts
+name: Wine DLL artifacts (external)
 
 on:
-  push:
-    branches:
-      - main
-
-env:
-  BUILD_TYPE: Release
+  workflow_dispatch:
 
 jobs:
-  wine_dll_artifacts:
-    runs-on: ${{ matrix.arch }}
-    strategy:
-      matrix:
-        arch: [[self-hosted, ARM64, mingw]]
-      fail-fast: false
+  build:
+    runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6
+      - name: Clone source repo
+        run: |
+          git clone https://github.com/REPO_ORIGINAL/wine.git wine
+          cd wine
+          git checkout main
 
-    - name: Add MingGW to PATH
-      run: echo "$HOME/llvm-mingw/build/bin/" >> $GITHUB_PATH
+      - name: Install deps
+        run: |
+          sudo apt update
+          sudo apt install -y ninja clang lld mingw-w64
 
-    - name: Checkout Submodules
-      # Need to update submodules
-      run: |
-        git submodule sync --recursive
-        git submodule update --init --depth 1
+      - name: Build wow64
+        run: |
+          cd wine
+          ./build-wow64.sh
 
-    - name: Clean install directory
-      run: rm -Rf install
+      - name: Build arm64ec
+        run: |
+          cd wine
+          ./build-arm64ec.sh
 
-    - name: Build (wow64)
-      uses: ./.github/workflows/wine_build
-      with:
-        target: wow64
-
-    - name: Build (arm64ec)
-      uses: ./.github/workflows/wine_build
-      with:
-        target: arm64ec
-
-    - name: Upload libraries
-      uses: actions/upload-artifact@v6
-      timeout-minutes: 1
-      with:
-        overwrite: true
-        name: wine_dll_artifacts
-        path: ${{ github.workspace }}/install/usr/lib/wine/aarch64-windows/lib*.dll
-        retention-days: 60
-        compression-level: 9
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wine_dll_artifacts
+          path: wine/install/usr/lib/wine/**/*.dll
