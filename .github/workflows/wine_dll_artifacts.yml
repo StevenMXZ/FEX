@@ -1,4 +1,4 @@
-name: Wine DLL artifacts (external)
+name: Build FEX (external)
 
 on:
   workflow_dispatch:
@@ -8,29 +8,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Clone source repo
+      - name: Checkout FEX
+        uses: actions/checkout@v4
+        with:
+          repository: FEX-Emu/FEX
+          ref: main
+          path: FEX
+
+      - name: Init submodules
         run: |
-          git clone https://github.com/REPO_ORIGINAL/wine.git wine
-          cd wine
-          git checkout main
+          cd FEX
+          git submodule update --init --recursive --depth 1
 
       - name: Install deps
         run: |
           sudo apt update
-          sudo apt install -y ninja clang lld mingw-w64
+          sudo apt install -y cmake ninja-build clang lld
 
-      - name: Build wow64
+      - name: Build FEX
         run: |
-          cd wine
-          ./build-wow64.sh
-
-      - name: Build arm64ec
-        run: |
-          cd wine
-          ./build-arm64ec.sh
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: wine_dll_artifacts
-          path: wine/install/usr/lib/wine/**/*.dll
+          cd FEX
+          mkdir build
+          cd build
+          cmake .. -GNinja -DCMAKE_BUILD_TYPE=Release
+          ninja
